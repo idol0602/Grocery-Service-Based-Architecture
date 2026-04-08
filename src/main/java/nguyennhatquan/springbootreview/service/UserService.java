@@ -9,6 +9,7 @@ import nguyennhatquan.springbootreview.entity.Role;
 import nguyennhatquan.springbootreview.entity.Cart;
 import nguyennhatquan.springbootreview.entity.User;
 import nguyennhatquan.springbootreview.exception.ResourceNotFoundException;
+import nguyennhatquan.springbootreview.exception.UnauthorizedException;
 import nguyennhatquan.springbootreview.repository.UserRepository;
 import nguyennhatquan.springbootreview.repository.RoleRepository;
 import nguyennhatquan.springbootreview.repository.CartRepository;
@@ -119,6 +120,26 @@ public class UserService {
                 .role(savedUser.getRole().getName())
                 .accessToken(token)
                 .tokenType("Bearer")
+                .build();
+    }
+
+    public LoginResponse getUserProfile(String accessToken) {
+        // Validate token and extract user information
+        if (!tokenProvider.validateToken(accessToken)) {
+            throw new UnauthorizedException("Invalid or expired token");
+        }
+
+        String email = tokenProvider.getEmailFromToken(accessToken);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        return LoginResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .role(user.getRole().getName())
+                .accessToken(null)
+                .tokenType(null)
                 .build();
     }
 }

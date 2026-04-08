@@ -7,7 +7,6 @@ import nguyennhatquan.springbootreview.dto.CartResponse;
 import nguyennhatquan.springbootreview.entity.Cart;
 import nguyennhatquan.springbootreview.entity.CartItem;
 import nguyennhatquan.springbootreview.entity.Product;
-import nguyennhatquan.springbootreview.entity.User;
 import nguyennhatquan.springbootreview.exception.ResourceNotFoundException;
 import nguyennhatquan.springbootreview.repository.CartItemRepository;
 import nguyennhatquan.springbootreview.repository.CartRepository;
@@ -27,7 +26,6 @@ public class CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
-    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public CartResponse getCart(Long userId) {
