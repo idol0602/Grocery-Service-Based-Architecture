@@ -6,10 +6,12 @@ import lombok.extern.slf4j.Slf4j;
 import nguyennhatquan.springbootreview.dto.*;
 import nguyennhatquan.springbootreview.entity.User;
 import nguyennhatquan.springbootreview.repository.UserRepository;
+import nguyennhatquan.springbootreview.security.CustomUserDetails;
 import nguyennhatquan.springbootreview.service.CartService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -85,11 +87,11 @@ public class CartController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<CartResponse>> removeItem(
             @PathVariable Long productId,
-            Authentication authentication) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
         log.info("Remove item {} from cart", productId);
 
-        User user = userRepository.findByEmail(authentication.getName()).get();
-        CartResponse data = cartService.removeItem(user.getId(), productId);
+        CartResponse data = cartService.removeItem(userDetails.getId(), productId);
 
         ApiResponse<CartResponse> response = ApiResponse.<CartResponse>builder()
                 .code(200)

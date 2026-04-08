@@ -11,7 +11,6 @@ import nguyennhatquan.springbootreview.exception.ResourceNotFoundException;
 import nguyennhatquan.springbootreview.repository.CartItemRepository;
 import nguyennhatquan.springbootreview.repository.CartRepository;
 import nguyennhatquan.springbootreview.repository.ProductRepository;
-import nguyennhatquan.springbootreview.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,7 +60,8 @@ public class CartService {
         cartItem.setQuantity(cartItem.getQuantity() + quantity);
         cartItemRepository.save(cartItem);
 
-        cart = cartRepository.findByUserId(userId).get();
+        cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user: " + userId));
 
         log.info("Added {} of product {} to cart for user {}", quantity, productId, userId);
 
@@ -77,7 +77,14 @@ public class CartService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
 
         if (quantity <= 0) {
-            cartItemRepository.deleteByCartIdAndProductId(cart.getId(), productId);
+            CartItem cartItem = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Item not found in cart"));
+            cartItemRepository.delete(cartItem);
+
+            // Sync memory
+            if (cart.getItems() != null) {
+                cart.getItems().removeIf(item -> item.getProduct().getId().equals(productId));
+            }
         } else {
             if (product.getStock() < quantity) {
                 throw new RuntimeException("Insufficient stock for product: " + product.getName());
@@ -90,8 +97,6 @@ public class CartService {
             cartItemRepository.save(cartItem);
         }
 
-        cart = cartRepository.findByUserId(userId).get();
-
         log.info("Updated item {} in cart for user {}", productId, userId);
 
         return mapToResponse(cart);
@@ -102,9 +107,16 @@ public class CartService {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user: " + userId));
 
-        cartItemRepository.deleteByCartIdAndProductId(cart.getId(), productId);
+        // Find and delete the cart item
+        CartItem cartItem = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Item not found in cart for product: " + productId));
 
-        cart = cartRepository.findByUserId(userId).get();
+        cartItemRepository.delete(cartItem);
+
+        // Remove from the collection in memory to keep the persistence context synchronized
+        if (cart.getItems() != null) {
+            cart.getItems().removeIf(item -> item.getProduct().getId().equals(productId));
+        }
 
         log.info("Removed item {} from cart for user {}", productId, userId);
 
@@ -116,9 +128,10 @@ public class CartService {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user: " + userId));
 
-        if (cart.getItems() != null) {
-            cart.getItems().clear();
-            cartRepository.save(cart);
+        // Delete all cart items for this cart
+        if (cart.getItems() != null && !cart.getItems().isEmpty()) {
+            cartItemRepository.deleteAll(cart.getItems());
+            cart.getItems().clear(); // Sync memory
         }
 
         log.info("Cart cleared for user {}", userId);

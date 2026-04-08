@@ -16,10 +16,6 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * Custom implementation of UserDetails for Spring Security
- * Wraps the User entity and provides security-related information
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
