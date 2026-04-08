@@ -1,5 +1,6 @@
 package nguyennhatquan.springbootreview.exception;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import nguyennhatquan.springbootreview.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
@@ -179,6 +181,81 @@ public class GlobalExceptionHandler {
         ApiResponse<Object> response = ApiResponse.builder()
                 .code(400)
                 .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(extractPath(request))
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleEntityNotFoundException(
+            EntityNotFoundException ex, WebRequest request) {
+        log.warn("Entity not found: {}", ex.getMessage());
+
+        ApiResponse<Object> response = ApiResponse.builder()
+                .code(404)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(extractPath(request))
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBadRequestException(
+            BadRequestException ex, WebRequest request) {
+        log.warn("Bad Request: {}", ex.getMessage());
+
+        ApiResponse<Object> response = ApiResponse.builder()
+                .code(404)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(extractPath(request))
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<ApiResponse<Object>> handleSecurityException(
+            SecurityException ex, WebRequest request) {
+        log.warn("Security exception: {}", ex.getMessage());
+
+        ApiResponse<Object> response = ApiResponse.builder()
+                .code(403)
+                .message("Security error: " + ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(extractPath(request))
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<ApiResponse<Object>> handleRestClientException(
+            org.springframework.web.client.RestClientException ex, WebRequest request) {
+        log.error("Payment gateway error: {}", ex.getMessage());
+
+        ApiResponse<Object> response = ApiResponse.builder()
+                .code(503)
+                .message("Payment gateway temporarily unavailable")
+                .timestamp(LocalDateTime.now())
+                .path(extractPath(request))
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgumentException(
+            IllegalArgumentException ex, WebRequest request) {
+        log.warn("Illegal argument: {}", ex.getMessage());
+
+        ApiResponse<Object> response = ApiResponse.builder()
+                .code(400)
+                .message("Invalid argument: " + ex.getMessage())
                 .timestamp(LocalDateTime.now())
                 .path(extractPath(request))
                 .build();

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import nguyennhatquan.springbootreview.dto.OrderResponse;
 import nguyennhatquan.springbootreview.dto.PageResponse;
 import nguyennhatquan.springbootreview.entity.*;
+import nguyennhatquan.springbootreview.exception.BadRequestException;
 import nguyennhatquan.springbootreview.exception.ResourceNotFoundException;
 import nguyennhatquan.springbootreview.repository.CartItemRepository;
 import nguyennhatquan.springbootreview.repository.CartRepository;
@@ -23,7 +24,6 @@ import java.util.ArrayList;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
@@ -52,12 +52,20 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse createOrderFromCart(Long userId, String shippingAddress) {
+    public OrderResponse createOrderFromCart(Long userId, String shippingAddress) throws BadRequestException {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user: " + userId));
 
         if (cart.getItems() == null || cart.getItems().isEmpty()) {
-            throw new RuntimeException("Cart is empty");
+            throw new BadRequestException("Cart is empty");
+        }
+
+        for(CartItem cartItem : cart.getItems()) {
+            Product product = cartItem.getProduct();
+            if(product.getStock() < cartItem.getQuantity()) {
+                throw new BadRequestException("Insufficient stock for product: " + product.getName()
+                        + " (available: " + product.getStock() + ", requested: " + cartItem.getQuantity() + ")");
+            }
         }
 
         Order order = Order.builder()
@@ -69,13 +77,8 @@ public class OrderService {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
-        for (CartItem cartItem : cart.getItems()) {
+        for(CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
-
-            if (product.getStock() < cartItem.getQuantity()) {
-                throw new RuntimeException("Insufficient stock for product: " + product.getName());
-            }
-
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
@@ -87,7 +90,6 @@ public class OrderService {
             totalAmount = totalAmount.add(product.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
 
             product.setStock(product.getStock() - cartItem.getQuantity());
-            productRepository.save(product);
         }
 
         order.setTotalAmount(totalAmount);
@@ -95,9 +97,7 @@ public class OrderService {
 
         cart.getItems().clear();
         cartRepository.save(cart);
-
         log.info("Order created successfully with id: {} for user: {}", savedOrder.getId(), userId);
-
         return mapToResponse(savedOrder);
     }
 
